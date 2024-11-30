@@ -69,7 +69,8 @@ providing more detailed information about usage, configuration and known limitat
 
 [[gremlin-go]]
 == Gremlin-Go
-WARNING: Gremlin-Go is not available in this Milestone release, please consider testing with Java or Python.
+IMPORTANT: 4.0 Milestone Release - Gremlin-Go is not available in this milestone, please consider testing with Java or
+Python.
 
 image:gremlin-go.png[width=130,float=right] Apache TinkerPop's Gremlin-Go implements Gremlin within the link:https://go.dev/[Go] language and can therefore be used on different operating systems. Go's syntax has the similar constructs as Java including
 "dot notation" for function chaining (`a.b.c`) and round bracket function arguments (`a(b,c)`). Something unlike Java is that Gremlin-Go requires a
@@ -833,19 +834,22 @@ Please see the link:https://tinkerpop.apache.org/javadocs/x.y.z/core/org/apache/
 [[gremlin-java-transactions]]
 === Transactions
 
-Transactions with Java isn't currently supported.
+IMPORTANT: 4.0 Milestone Release - Transactions with Java isn't currently supported.
 
 [[gremlin-java-serialization]]
 === Serialization
 
 Remote systems like Gremlin Server and Remote Gremlin Providers respond to requests made in a particular serialization
 format and respond by serializing results to some format to be interpreted by the client. For JVM-based languages,
-there are two options for serialization: GraphSON and GraphBinary. Note, however, that starting in the full release of
-4.0, only GraphBinary will be supported in the Gremlin Driver. It is important that the client and server have the same
-serializers configured in the same way or else one or the other will experience serialization exceptions and fail to
-always communicate. Discrepancy in serializer registration between client and server can happen fairly easily as
-different graph systems may automatically include serializers on the server-side, thus leaving the client to be
-configured manually. As an example:
+there is a single option for serialization: GraphBinary.
+
+IMPORTANT: 4.0 Milestone Release - There is temporary support for GraphSON in the Java driver which will help with
+testing, but it is expected that the drivers will only support GraphBinary when 4.0 is fully released.
+
+It is important that the client and server have the same serializers configured in the same way or else one or the
+other will experience serialization exceptions and fail to always communicate. Discrepancy in serializer registration
+between client and server can happen fairly easily as different graph systems may automatically include serializers on
+the server-side, thus leaving the client to be configured manually. As an example:
 
 [source,java]
 ----
@@ -1041,6 +1045,9 @@ a `org.apache.tinkerpop.gremlin.driver.HttpRequest` that contains a `RequestMess
 other fields, you will need to make a different copy of the `RequestMessage` or completely change the body to contain a
 different data type. The very last interceptor should have a `org.apache.tinkerpop.gremlin.driver.HttpRequest` that
 contains a byte[] in the body.
+
+For an example of a simple `RequestInterceptor` that only modifies the header of the request take a look at
+link:https://github.com/apache/tinkerpop/blob/x.y.z/gremlin-driver/src/main/java/org/apache/tinkerpop/gremlin/driver/auth/Basic.java[basic authentication].
 
 [[gremlin-java-dsl]]
 === Domain Specific Languages
@@ -1261,7 +1268,8 @@ All examples can then be run using your IDE of choice.
 
 [[gremlin-javascript]]
 == Gremlin-JavaScript
-WARNING: Gremlin-JavaScript is not available in this Milestone release, please consider testing with Java or Python.
+IMPORTANT: 4.0 Milestone Release - Gremlin-JavaScript is not available in this milestone, please consider testing with
+Java or Python.
 
 image:gremlin-js.png[width=130,float=right] Apache TinkerPop's Gremlin-JavaScript implements Gremlin within the
 JavaScript language. It targets Node.js runtime and can be used on different operating systems on any Node.js 6 or
@@ -1710,7 +1718,8 @@ node modern-traversals.js
 anchor:gremlin-DotNet[]
 [[gremlin-dotnet]]
 == Gremlin.Net
-WARNING: Gremlin.Net is not available in this Milestone release, please consider testing with Java or Python.
+IMPORTANT: 4.0 Milestone Release - Gremlin.Net is not available in this milestone, please consider testing with Java or
+Python.
 
 image:gremlin-dotnet-logo.png[width=371,float=right] Apache TinkerPop's Gremlin.Net implements Gremlin within the C#
 language. It targets .NET Standard and can therefore be used on different operating systems and with different .NET

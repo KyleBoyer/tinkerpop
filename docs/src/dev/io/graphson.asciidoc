@@ -23,7 +23,7 @@ exist on virtually all platforms. GraphSON versions 1 to 3 were considered to be
 generalized object serialization format. That characteristic makes it useful as a serialization format for Gremlin
 Server where arbitrary objects of varying types may be returned as results. However, starting in GraphSON 4, GraphSON
 is only intended to be a network serialization format that is only able to serialize specific types defined by the
-format. It is only meant to be used between language variants and the Gremlin Server.
+format. It is only meant to be used with the TinkerPop HTTP API.
 
 When considering GraphSON as a "graph" format, the relevant feature to consider is the `writeGraph` and `readGraph`
 methods on the `GraphSONWriter` and `GraphSONReader` interfaces, respectively. These methods write the entire `Graph`

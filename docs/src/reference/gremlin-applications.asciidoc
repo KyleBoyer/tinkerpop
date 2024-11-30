@@ -836,8 +836,6 @@ bin/gremlin-server.sh conf/gremlin-server-modern.yaml
 
 Once the server has started, issue a request.  Here's an example with link:http://curl.haxx.se/[cURL]:
 
-`POST` is the only supported method for the endpoint:
-
 [source,text]
 curl -X POST -d "{\"gremlin\":\"100-1\"}" "http://localhost:8182"
 
@@ -845,10 +843,23 @@ returns:
 
 [source,js]
 {
-  "result":{"data":99,"meta":{}},
-  "requestId":"ef2fe16c-441d-4e13-9ddb-3c7b5dfb10ba",
-  "status":{"code":200,"attributes":{},"message":""}
+  "result": {
+      "data": {
+          "@type": "g:List",
+          "@value": [
+              {
+                  "@type": "g:Int32",
+                  "@value": 99
+              }
+          ]
+      }
+  },
+  "status": {
+      "code": 200
+  }
 }
+
+`POST` is the only supported method for this endpoint. This means that `GET` with query parameters is not supported.
 
 It is also preferred that Gremlin scripts be parameterized when possible via `bindings`:
 

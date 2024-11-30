@@ -54,168 +54,6 @@ This document attempts to address the needs of the different providers that have
 * Graph Language Provider
 * Graph Plugin Provider
 
-== HTTP API
-
-This section describes the TinkerPop HTTP API which should be implemented by both graph system providers and graph
-driver providers. There is only one endpoint that currently needs to be supported which is `POST /gremlin`. This
-endpoint is a Gremlin evaluator which takes in a Gremlin script request and responds with the serialized results. The
-formats below use a bit of pseudo-JSON to help represent request and response bodies. The actual format of the request
-and response bodies will be determined by the serializers defined via the "Accept" and "Content-Type" headers. As a
-result, a generic type definition in this document like "number" could translate to a "long" for a serializer that
-supports types like GraphBinary.
-
-=== HTTP Request Format
-
-[source,text]
-----
-POST /gremlin HTTP/1.1
-Accept: <mimetype>
-Content-Type: <mimetype>
-Gremlin-Hints: <hints>
-
-{
-  "gremlin": string,
-  "timeoutMs": number,
-  "bindings": object,
-  "g": string,
-  "language" : string,
-  "materializeProperties": string,
-  "bulkResults": boolean
-}
-----
-
-An actual, complete request might look like the following:
-
-[source,text]
-----
-POST /gremlin HTTP/1.1
-content-length: 61
-host: 127.0.0.1
-content-type: application/vnd.gremlin-v4.0+json
-accept-encoding: deflate
-accept: application/vnd.graphbinary-v4.0
-user-agent: NotAvailable Gremlin-Java.4.0.0 11.0.25 Windows_11.10.0 amd64
-{
-    "gremlin": "g.V()",
-    "language": "gremlin-lang"
-}
-----
-
-==== Expected Request HTTP Headers
-
-[width="100%",cols="3,10,3,3",options="header"]
-|=========================================================
-|Name |Description |Required |Default
-|Accept |Serializer MIME types supported for the response. Must be a mimetype (see table below). |No |`application/vnd.gremlin-v4.0+json;types=false`
-|Accept-Encoding |The requested compression algorithm of the response. Valid values: `deflate`. |No |N/A
-|Authorization |Header used with Basic authorization. |No |N/A
-|Content-Length |The size of the payload |Yes |N/A
-|Content-Type |The MIME type of the serialized body |No |None
-|Gremlin-Hints |A semi-colon separated list of key/value pair metadata that could be helpful to the server in processing a particular request in some way. Must be a hints (see table below). |No |N/A
-|User-Agent |The user agent. Follow the format specified by <<user-agent-format, user agent format>>. |No |<<user-agent-format, user agent format>>
-|=========================================================
-
-==== Request Header Value Options
-
-[width="100%",cols="3,10",options="header"]
-|=========================================================
-|Name |Options
-|mimetype | application/vnd.gremlin-v4.0+json;types=false - GraphSON without embedded types
-|         | application/vnd.gremlin-v4.0+json;types=true - GraphSON with embedded types
-|         | application/vnd.graphbinary-v4.0 - GraphBinary with embedded types
-|hints | mutations: yes, no, unknown - Indicates if the Gremlin contains steps that can mutate the graph.
-|=========================================================
-
-The body of the request should be a `RequestMessage` which is a `Map`. The `RequestMessage` should be serialized using
-the serializer specified by the `Content-Type` header. The following are the key value pairs allowed in a
-`RequestMessage`:
-
-==== Request Message Format
-
-[width="100%",cols="3,10,3,3",options="header"]
-|=========================================================
-|Key |Description |Value |Required
-|gremlin |The Gremlin query to execute. |String containing script |Yes
-|timeoutMs |The maximum time a query is allowed to execute in milliseconds. |Number between 0 and 2^31-1 |No
-|bindings |Any bindings used to execute the query. |Object (Map) |No
-|g |The name of the graph traversal source to which the query applies. Default: "g" |String containing traversal source name |No
-|language |The name of the ScriptEngine to use to parse the gremlin query. Default: "gremlin-lang" |String containing ScriptEngine name |No
-|materializeProperties |Whether to include all properties for results. One of "tokens" or "all". |String |No
-|bulkResults |Whether the results should be bulked by the server (only applies to GraphBinary) |Boolean |No
-|=========================================================
-
-=== HTTP Response Format
-
-[source,text]
-----
-HTTP/1.1 200
-Content-type: <mimetype>
-Transfer-Encoding: chunked
-Gremlin-RequestId: <uuid>
-{
-  "result": list,
-  "status": object
-}
-----
-
-NOTE: While this response message is expected for all serialized responses, there may be some errors that are not
-serialized. In that case, the `Content-Type` of the response should be `application/json` and the JSON should contain a
-`message` key.
-
-==== Response Message Format
-
-[width="100%",cols="3,10a",options="header"]
-|=========================================================
-|Key |Description
-|result |A map that contains the result data.
-[width="100%",cols="3,10,3,3",options="header"]
-!=========================================================
-!Name !Description !Required !Default
-!data !A list of result objects. !Array !Yes
-!=========================================================
-|status |A map that contains the status of the result.
-[width="100%",cols="3,10,3,3",options="header"]
-!=========================================================
-!Name !Description !Required !Default
-!code !The actual status code of the result. !Number !Yes
-!exception !A class of exception if an error occurred. !String !No
-!message !The error message if an error occurred. !String !No
-!=========================================================
-|=========================================================
-
-==== Expected Response HTTP Headers
-
-[width="100%",cols="3,10,3,3",options="header"]
-|=========================================================
-|Name |Description |Required |Default
-|Content-Type |The MIME type of the serialized body which is based on the request's `Accept` header. May also be "application/json". |Yes |N/A
-|Gremlin-RequestId |The server generated UUID that is used as a request ID. |Yes |N/A
-|Transfer-Encoding |The server should attempt to chunk all responses. |No |"chunked"
-|=========================================================
-
-==== Response Header Value Options
-
-[width="100%",cols="3,10",options="header"]
-|=========================================================
-|Name |Options
-|mimetype | application/vnd.gremlin-v4.0+json;types=false - GraphSON without embedded types
-|         | application/vnd.gremlin-v4.0+json;types=true - GraphSON with embedded types
-|         | application/vnd.graphbinary-v4.0 - GraphBinary with embedded types
-|         | application/json - some error cases may return JSON back
-|uuid |A randomly generated UUID string.
-|=========================================================
-
-==== Trailing Headers
-
-Error responses will have trailing headers in addition to the status object in the response body. This information is
-duplicated and should be the same, so graph driver providers should use whichever is easier for them. The trailers, however, will only contain the `Status` and `Exception` without the `Message`.
-
-=== HTTP Examples
-
-For examples of actual requests and responses, take a look at the IO documentation for
-link:https://tinkerpop.apache.org/docs/3.7.3/dev/io/#_requestmessage[GraphSON requests] and
-link:https://tinkerpop.apache.org/docs/3.7.3/dev/io/#_responsemessage[GraphSON responses].
-
 [[graph-system-provider-requirements]]
 == Graph System Provider Requirements
 
@@ -1133,10 +971,9 @@ extensible nature of Gremlin Server, it is difficult to provide an authoritative
 It is however possible to describe the core communication protocol using the standard out-of-the-box configuration
 which should provide enough information to develop a driver for a specific language.
 
-Gremlin Server is distributed with a configuration that utilizes link:http://en.wikipedia.org/wiki/WebSocket[WebSocket]
-with a custom sub-protocol.  Under this configuration, Gremlin Server accepts requests containing a Gremlin script,
-evaluates that script and then streams back the results.  The notion of "streaming" is depicted in the diagram to the
-right.
+Gremlin Server is distributed with a configuration that utilizes HTTP with a custom API.  Under this configuration,
+Gremlin Server accepts requests containing a Gremlin script, evaluates that script and then streams back the results in
+HTTP chunks.
 
 Let's use the incoming request to process the Gremlin script of `g.V()` as an example.  Gremlin Server evaluates that 
 script, getting an `Iterator` of vertices as a result, and steps through each `Vertex` within it.  The vertices are
@@ -1151,6 +988,9 @@ Server returns for a single request.  Again, this description of Gremlin Server'
 out-of-the-box configuration.  It is quite possible to construct other flows, that might be more amenable to a
 particular language or style of processing.
 
+NOTE: TinkerPop provides a test server which may be useful for testing drivers. Details can be found
+link:https://tinkerpop.apache.org/docs/current/dev/developer/#gremlin-socket-server-tests[here]
+
 It is recommended but not required that a driver include a `User-Agent` header as part of any HTTP request to Gremlin
 Server. Gremlin Server uses the user agent in building usage metrics as well as debugging. The standard format for
 connection user agents is:
@@ -1160,68 +1000,170 @@ connection user agents is:
 For example:
 `"MyTestApplication Gremlin-Java.3.5.4 11.0.16.1 Mac_OS_X.12.6.1 aarch64"`
 
+The following section provides an in-depth description of the TinkerPop HTTP API.  The HTTP API is used for
+communicating the requests and responses that were described earlier.
+
+=== HTTP API
+
+This section describes the TinkerPop HTTP API which should be implemented by both graph system providers and graph
+driver providers. There is only one endpoint that currently needs to be supported which is `POST /gremlin`. This
+endpoint is a Gremlin evaluator which takes in a Gremlin script request and responds with the serialized results. The
+formats below use a bit of pseudo-JSON to help represent request and response bodies. The actual format of the request
+and response bodies will be determined by the serializers defined via the "Accept" and "Content-Type" headers. As a
+result, a generic type definition in this document like "number" could translate to a "long" for a serializer that
+supports types like GraphBinary.
+
+==== HTTP Request
+
 To formulate a request to Gremlin Server, a `RequestMessage` needs to be constructed.  The `RequestMessage` is a
-generalized representation of a request that carries a set of "standard" values in addition to optional ones that are
-dependent on the operation being performed.  A `RequestMessage` has these fields:
+generalized representation of a request.
+
+This message can be serialized in any fashion that is supported by Gremlin Server, which by default is GraphBinary.
+An HTTP requests that contains a `RequestMessage` has the following form:
+
+[source,text]
+----
+POST /gremlin HTTP/1.1
+Accept: <mimetype>
+Content-Type: <mimetype>
+Gremlin-Hints: <hints>
+
+{
+  "gremlin": string,
+  "timeoutMs": number,
+  "bindings": object,
+  "g": string,
+  "language" : string,
+  "materializeProperties": string,
+  "bulkResults": boolean
+}
+----
+
+An actual, complete request might look like the following:
+
+[source,text]
+----
+POST /gremlin HTTP/1.1
+content-length: 61
+host: 127.0.0.1
+content-type: application/vnd.gremlin-v4.0+json
+accept-encoding: deflate
+accept: application/vnd.graphbinary-v4.0
+user-agent: NotAvailable Gremlin-Java.4.0.0 11.0.25 Windows_11.10.0 amd64
+{
+    "gremlin": "g.V()",
+    "language": "gremlin-lang"
+}
+----
+
+===== Expected Request HTTP Headers
+
+[width="100%",cols="3,10,3,3",options="header"]
+|=========================================================
+|Name |Description |Required |Default
+|Accept |Serializer MIME types supported for the response. Must be a mimetype (see <<serializers>>). |No |`application/vnd.gremlin-v4.0+json;types=false`
+|Accept-Encoding |The requested compression algorithm of the response. Valid values: `deflate`. |No |N/A
+|Authorization |Header used with Basic authorization. |No |N/A
+|Content-Length |The size of the payload |Yes |N/A
+|Content-Type |The MIME type of the serialized body |No |None
+|Gremlin-Hints |A semi-colon separated list of key/value pair metadata that could be helpful to the server in processing a particular request in some way. Must be a hints (see table below). |No |N/A
+|User-Agent |The user agent. Follow the format specified by <<user-agent-format, user agent format>>. |No |<<user-agent-format, user agent format>>
+|=========================================================
+
+===== Request Header Value Options
 
 [width="100%",cols="3,10",options="header"]
 |=========================================================
-|Key |Description
-|gremlin |The script to be executed by the server.
-|language |The script's language.  The default is `gremlin-lang`.
-|timeoutMs |The maximum time a query is allowed to execute in milliseconds.  The default value is server dependent.
-|materializeProperties |Determines if properties will be included in `Element` results.
-|bindings |A `Map` of arbitrary parameters to pass to the server.  The requirements for the contents of this `Map` are dependent on the `op` selected.
-|g |The name of the `GraphTraversalSource` to use on the server.  The default is `g`.
+|Name |Options
+|mimetype |A MIME type listed in <<serializers>>.
+|hints | mutations: yes, no, unknown - Indicates if the Gremlin contains steps that can mutate the graph.
 |=========================================================
 
-This message can be serialized in any fashion that is supported by Gremlin Server.  Gremlin Server provides for
-JSON serialization by default which will be good enough for purposes of most developers building drivers.
-A `RequestMessage` to evaluate a script with variable bindings looks like this in JSON:
+The body of the request should be a `RequestMessage` which is a `Map`. The `RequestMessage` should be serialized using
+the serializer specified by the `Content-Type` header. The following are the key value pairs allowed in a
+`RequestMessage`:
 
-[source,js]
-----
-{ "gremlin":"g.V(x).out()",
-  "bindings":{"x":1},
-  "language":"gremlin-groovy"}}
-----
+===== Request Message Format
 
-The above JSON represents the "body" of the request to send to Gremlin Server. When sending this "body" over
-HTTP, Gremlin Server expects that the "Content-Type" header will contain the MIME type name of the serializer.
-`application/json` should be used for plain JSON requests, such as the one used in the above example.
+[width="100%",cols="3,10,3,3",options="header"]
+|=========================================================
+|Key |Description |Value |Required
+|gremlin |The Gremlin query to execute. |String containing script |Yes
+|timeoutMs |The maximum time a query is allowed to execute in milliseconds. |Number between 0 and 2^31-1 |No
+|bindings |A map used during query execution. Its usage depends on "language". For "gremlin-groovy", these are the variable bindings. For "gremlin-lang", these are the parameter bindings. |Object (Map) |No
+|g |The name of the graph traversal source to which the query applies. Default: "g" |String containing traversal source name |No
+|language |The name of the ScriptEngine to use to parse the gremlin query. Default: "gremlin-lang" |String containing ScriptEngine name |No
+|materializeProperties |Whether to include all properties for results. One of "tokens" or "all". |String |No
+|bulkResults |Whether the results should be bulked by the server (only applies to GraphBinary) |Boolean |No
+|=========================================================
 
-image::gremlin-server-request.png[]
+==== HTTP Response
 
 When Gremlin Server receives that request, it will decode it given the "mime type", and execute it using the
 `ScriptEngine` specified by the `language` field.  In this case, it will evaluate the script `g.V(x).out()` using the
 `bindings` supplied in the `args` and stream back the results in HTTP chunks. When the chunks are combined, they will
-form a single `ResponseMessage`.  A `ResponseMessage` looks like this:
+form a single `ResponseMessage`.  The HTTP response containing the `ResponseMessage` has the following form:
+
+[source,text]
+----
+HTTP/1.1 200
+Content-type: <mimetype>
+Transfer-Encoding: chunked
+Gremlin-RequestId: <uuid>
+{
+  "result": list,
+  "status": object
+}
+----
+
+NOTE: While this response message is expected for all serialized responses, there may be some errors that are not
+serialized. In that case, the `Content-Type` of the response should be `application/json` and the JSON should contain a
+`message` key.
+
+===== Response Message Format
+
+[width="100%",cols="3,10a",options="header"]
+|=========================================================
+|Key |Description
+|result |A map that contains the result data.
+[width="100%",cols="3,10,3,3",options="header"]
+!=========================================================
+!Name !Description !Required !Default
+!data !A list of result objects. !Array !Yes
+!=========================================================
+|status |A map that contains the status of the result.
+[width="100%",cols="3,10,3,3",options="header"]
+!=========================================================
+!Name !Description !Required !Default
+!code !The actual <<http-status-codes,status code>> of the result. !Number !Yes
+!exception !A class of exception if an error occurred. !String !No
+!message !The error message if an error occurred. !String !No
+!=========================================================
+|=========================================================
+
+===== Expected Response HTTP Headers
+
+[width="100%",cols="3,10,3,3",options="header"]
+|=========================================================
+|Name |Description |Required |Default
+|Content-Type |The MIME type of the serialized body which is based on the request's `Accept` header. May also be "application/json". |Yes |N/A
+|Gremlin-RequestId |The server generated UUID that is used as a request ID. |Yes |N/A
+|Transfer-Encoding |The server should attempt to chunk all responses. |No |"chunked"
+|=========================================================
+
+===== Response Header Value Options
 
 [width="100%",cols="3,10",options="header"]
 |=========================================================
-|Key |Description
-|status | The `status` contains a `Map` of three keys: `code` which refers to the link:http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html[HTTP status code], `exception` that is a `String` that describe the class of exception that the error falls ino, and `message` which is just a human-readable `String` usually associated with errors. For successul responses, only `status` is mandatory. 
-|result | The `result` contains a `Map` with one key: `data` which refers to the actual data returned from the server (the type of data is determined by the operation requested). The `data` is always within a `List`.
+|Name |Options
+|mimetype |A MIME type listed in <<serializers>>.
+|uuid |A randomly generated UUID string.
 |=========================================================
 
-In this case the `ResponseMessage` returned to the client would look something like this:
+[[http-status-codes]]
+===== Response Status Codes
 
-[source,js]
-----
-{"result":{"data":[{"id": 2,"label": "person","type": "vertex","properties": [
-  {"id": 2, "value": "vadas", "label": "name"},
-  {"id": 3, "value": 27, "label": "age"}]},
-  ]},
- "status":{"code":200}}
-----
-
-Note that this is the expected response if the `content-type` is a GraphSON or GraphBinary MIME type. Another issue may
-have occurred that prevented the server from returning a serialized response, in which case the serializer will use the
-`content-type: application/json`. Be sure to parse the response based on the `content-type` header.
-
-Gremlin Server is capable of streaming results, with additional responses arriving over HTTP in chunks until the
-iteration of the result on the server is complete.  The following table details the HTTP status codes that Gremlin
-Server will send:
+The following table details the HTTP status codes that Gremlin Server will send:
 
 [width="100%",cols="2,2,9",options="header"]
 |=========================================================
@@ -1236,26 +1178,30 @@ Server will send:
 |405 |METHOD NOT ALLOWED |The request used an unsupported method. The server only supports POST.
 |413 |REQUEST ENTITY TOO LARGE |The request was too large or the query could not be compiled due to size limitations.
 |500 |INTERNAL SERVER ERROR |A general server error occurred that prevented the request from being processed.
-|505 |HTTP VERSION NOT SUPPORTED |A server indicating that an unsupported version of HTTP is being used. Only HTTP/1.1 is supported.
+|505 |HTTP VERSION NOT SUPPORTED |A server error indicating that an unsupported version of HTTP is being used. Only HTTP/1.1 is supported.
 |=========================================================
 
-NOTE: Please refer to the link:https://tinkerpop.apache.org/docs/x.y.z/dev/io[IO Reference Documentation] for more
-examples of `RequestMessage` and `ResponseMessage` instances.
+===== Trailing Headers
 
-NOTE: TinkerPop provides a test server which may be useful for testing drivers. Details can be found
-link:https://tinkerpop.apache.org/docs/current/dev/developer/#gremlin-socket-server-tests[here]
+Error responses will have trailing headers in addition to the status object in the response body. This information is
+duplicated and should be the same, so graph driver providers should use whichever is easier for them. The trailers,
+however, will only contain the `Status` and `Exception` without the `Message`.
+
+==== HTTP Examples
+
+For examples of actual requests and responses, take a look at the IO documentation for
+link:https://tinkerpop.apache.org/docs/x.y.z/dev/io/#_requestmessage[GraphSON requests] and
+link:https://tinkerpop.apache.org/docs/x.y.z/dev/io/#_responsemessage[GraphSON responses].
 
 === HTTP Request Interceptor
 
-All graph drivers are expected to support HTTP request intercepting.  This means that the user of the graph driver
-should have access to a mechanism that allows them to update the HTTP headers and HTTP body of the HTTP request before
-the request is sent to the server.  This allows for use cases where a graph system provider's server implementation has
-additional capabilities that aren't included in the base Gremlin Server.  Although every graph system provider is
-expected to support the protocol defined by the TinkerPop HTTP API, this doesn't preclude them from including
-additional functionality.  The graph drivers should, therefore, be flexible enough to allow the use of those additional
-capabilities, as long as the response follows the proper serialized `ResponseMessage` format.  There are no specific
-implementation requirements for request interceptors.  The graph driver provider just needs to provide some means of
-modifying the HTTP request.
+A graph driver may support HTTP request intercepting which provides a means for the user of your graph driver to update
+the headers and body of the HTTP request before it is sent to the server.  This enables use cases where a graph system
+provider's server implementation has additional capabilities that aren't included in the base Gremlin Server.  Although
+every graph system provider is expected to support the protocol defined by the TinkerPop HTTP API, this doesn't
+preclude them from including additional functionality.  Be aware that if you choose to not provide this functionality,
+then your graph driver may not have access to some graph provider's features, or, possibly, it may not be able to
+connect at all.
 
 === Authentication and Authorization
 
@@ -1284,13 +1230,33 @@ link:https://tinkerpop.apache.org/docs/x.y.z/reference/#security[reference docum
 NOTE: While Gremlin Server supports this authorization feature it is not a feature that TinkerPop requires of graph
 providers as part of the agreement between client and server.
 
-=== IO Tests
+[[serializers]]
+=== Serializers
+
+In order to serialize and deserialize the requests and responses, your graph driver will need to implement
+link:https://tinkerpop.apache.org/docs/x.y.z/dev/io/#graphbinary[GraphBinary]. The Gremlin Server is capable of
+returning both GraphBinary and GraphSON, however, GraphBinary is a more compact format which can lead to increased
+performance as fewer bytes need to be sent through the wire. For this reason, drivers only need to support GraphBinary.
+link:https://tinkerpop.apache.org/docs/x.y.z/dev/io/#graphson[GraphSON] can be used by applications that only support JSON serialization.
+
+The following table lists the serializers supported by the Gremlin Server and their MIME types. These MIME types should
+be used in the `Content-Type` and `Accept` HTTP headers.
+
+[width="100%",cols="3,5,5",options="header"]
+|=========================================================
+|Name |Description |MIME type
+|Untyped GraphSON 4.0 |A JSON-based graph format |application/vnd.gremlin-v4.0+json;types=false
+|Typed GraphSON 4.0 |A JSON-based graph format with embedded type information used for serialization |application/vnd.gremlin-v4.0+json;types=true
+|GraphBinary 4.0 |A binary graph format |application/vnd.graphbinary-v4.0
+
+==== IO Tests
 
 The IO test suite is a collection of files that contain the expected outcome of serialization of certain types. These
 tests can be used to determine if a particular serializer has been correctly implemented. In general, a driver should
 be able to "round trip" each of these types. That is, it should be able to both read from and write to those exact same
-bytes. There may be some limitations based the types available in your driver's language, so it is not always possible
-to round trip every type. The GraphBinary test files can be found
+bytes. Not all programming languages provide library types that will match the specification of the corresponding type
+defined by the serializer. In this case, it is not possible to completely round trip that type and you may skip that
+test. The GraphBinary test files can be found
 link:https://github.com/apache/tinkerpop/tree/x.y.z/gremlin-test/src/main/resources/org/apache/tinkerpop/gremlin/structure/io/graphbinary[here].
 The link:https://github.com/apache/tinkerpop/blob/x.y.z/gremlin-util/src/test/java/org/apache/tinkerpop/gremlin/structure/io/AbstractTypedCompatibilityTest.java:[Java implementation]
 can be used as a reference on how these files can be used and its
