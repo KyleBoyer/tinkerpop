@@ -1016,10 +1016,8 @@ supports types like GraphBinary.
 ==== HTTP Request
 
 To formulate a request to Gremlin Server, a `RequestMessage` needs to be constructed.  The `RequestMessage` is a
-generalized representation of a request.
-
-This message can be serialized in any fashion that is supported by Gremlin Server, which by default is GraphBinary.
-An HTTP requests that contains a `RequestMessage` has the following form:
+generalized representation of a request. This message can be serialized in any fashion that is supported by Gremlin
+Server, which by default is GraphBinary. An HTTP request that contains a `RequestMessage` has the following form:
 
 [source,text]
 ----
@@ -1248,6 +1246,7 @@ be used in the `Content-Type` and `Accept` HTTP headers.
 |Untyped GraphSON 4.0 |A JSON-based graph format |application/vnd.gremlin-v4.0+json;types=false
 |Typed GraphSON 4.0 |A JSON-based graph format with embedded type information used for serialization |application/vnd.gremlin-v4.0+json;types=true
 |GraphBinary 4.0 |A binary graph format |application/vnd.graphbinary-v4.0
+|=========================================================
 
 ==== IO Tests
 
